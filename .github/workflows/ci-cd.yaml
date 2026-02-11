@@ -80,57 +80,38 @@ jobs:
     if: needs.build-and-push.outputs.is_tag_build == 'true'
     runs-on: ubuntu-latest
     
-    steps:
+        steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Kubernetes
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.12.2'
-      
+          version: 'v1.28.0' # Обновите версию, 1.12 очень старая
+
       - name: Authenticate to Kubernetes cluster
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
-      - name: Get image tag from build job
-        id: get-image-tag
+      - name: Replace image tag and Apply
+        env:
+          # Берем данные из предыдущего джоба и env
+          IMG_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          IMG_NAME: ${{ env.IMAGE_NAME }} 
+          NS: ${{ env.NAMESPACE }}
         run: |
-          echo "Using image tag: ${{ needs.build-and-push.outputs.image_tag }}"
-          echo "image_tag=${{ needs.build-and-push.outputs.image_tag }}" >> $GITHUB_OUTPUT
-
-      - name: Create namespace if not exists
-        run: |
-          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Clean up stuck pods
-        run: |
-          # Удаляем все поды в статусе Pending или Error
-          kubectl get pods -n ${{ env.NAMESPACE }} --field-selector=status.phase!=Running -o name | xargs -r kubectl delete -n ${{ env.NAMESPACE }} 2>/dev/null || true
-      
-      - name: Replace image tag in deployment-svc.yaml
-        run: |
-          # Обновляем образ
-          sed -i "s|image: {{ env.IMAGE_NAME }}:.*|image: $IMAGE_TAG|" ./deployment-svc.yaml
+          # 1. Создаем namespace
+          kubectl create namespace $NS --dry-run=client -o yaml | kubectl apply -f -
           
-      - name: Apply Kubernetes manifests
-        run: |
-          kubectl apply -f ./deployment-svc.yaml -n ${{ env.NAMESPACE }}
+          # 2. Очистка (необязательно, но раз у вас была)
+          kubectl get pods -n $NS --field-selector=status.phase!=Running -o name | xargs -r kubectl delete -n $NS
           
-      - name: Verify deployment
-        run: |
-          echo "=== Current pods ==="
-          kubectl get pods -n ${{ env.NAMESPACE }} -l app=web-app -o wide
+          # 3. Замена образа (используем разделитель | чтобы не экранировать слэши в названии образа)
+          # Предполагаем, что в файле написано что-то вроде image: myrepo/app:latest
+          sed -i "s|image: .*|image: $IMG_NAME:$IMG_TAG|g" ./deployment-svc.yaml
           
-          echo -e "\n=== Current image ==="
-          kubectl get deployment diplom-app -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}'
-          echo ""
-          
-          echo "=== Pod status ==="
-
-          kubectl get pods -n ${{ env.NAMESPACE }} -l app=web-app -o jsonpath='{range .items[*]}{.metadata.name}: {.status.phase}{"\n"}{end}'
-
-
+          # 4. Применение
+          kubectl apply -f ./deployment-svc.yaml -n $NS
 
