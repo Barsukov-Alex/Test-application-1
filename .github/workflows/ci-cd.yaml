@@ -10,7 +10,9 @@ on:
 env:
   IMAGE_NAME: mozdoksity/nginx:v1
   NAMESPACE: test-application-1
-
+  with:
+    username: ${{ secrets.USER_DOCKER_HUB }}
+    password: ${{ secrets.MY_TOKEN_DOCKER_HUB }}
 jobs:
   build-and-push:
     name: Build Docker image
@@ -133,3 +135,4 @@ jobs:
           echo "=== Pod status ==="
 
           kubectl get pods -n ${{ env.NAMESPACE }} -l app=web-app -o jsonpath='{range .items[*]}{.metadata.name}: {.status.phase}{"\n"}{end}'
+
