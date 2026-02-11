@@ -58,7 +58,7 @@ jobs:
             echo "Generated version for branch commit: $VERSION"
           fi
           
-          IMAGE_TAG="${{ env.IMAGE_NAME }}:$VERSION"
+          IMAGE_TAG="${{ env.IMAGE_NAME }}-$VERSION"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           echo "Final image tag: $IMAGE_TAG"
       
@@ -131,5 +131,6 @@ jobs:
           echo "=== Pod status ==="
 
           kubectl get pods -n ${{ env.NAMESPACE }} -l app=web-app -o jsonpath='{range .items[*]}{.metadata.name}: {.status.phase}{"\n"}{end}'
+
 
 
