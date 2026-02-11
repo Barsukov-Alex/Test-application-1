@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-application-1
+  namespace: test-application-1
+  labels:
+    app: web-app
+spec:
+  replicas: 2 
+  selector:
+    matchLabels:
+      app: web-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+      - name: diplom-test-app
+        # Тег будет заменен командой `sed` при workflow (ci-cd.yaml),
+        # если появится новая версия формата (v1.0.0) 
+        image: mspitsyn/devops-diplom-app:20260125-f2abce7
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "20m"
+            memory: "30Mi" 
+          limits:
+            cpu: "50m"
+            memory: "50Mi"
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30  
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-application-1
+  namespace: test-application-1
+spec:
+  type: NodePort
+  selector:
+    app: web-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30071
