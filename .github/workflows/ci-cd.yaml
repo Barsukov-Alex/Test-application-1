@@ -79,8 +79,7 @@ jobs:
     needs: build-and-push
     if: needs.build-and-push.outputs.is_tag_build == 'true'
     runs-on: ubuntu-latest
-    
-        steps:
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -114,4 +113,5 @@ jobs:
           
           # 4. Применение
           kubectl apply -f ./deployment-svc.yaml -n $NS
+
 
